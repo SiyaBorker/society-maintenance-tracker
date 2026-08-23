@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listComplaints } from '../../api/complaints';
+import { listComplaints, exportComplaintsCsv } from '../../api/complaints';
 import ComplaintCard from '../../components/ComplaintCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { CATEGORIES, STATUSES } from '../../utils/constants';
@@ -8,6 +8,7 @@ export default function AdminComplaintsPage() {
   const [complaints, setComplaints] = useState(null);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ category: '', status: '', dateFrom: '', dateTo: '' });
+  const [exporting, setExporting] = useState(false);
 
   const load = (activeFilters) => {
     const params = Object.fromEntries(Object.entries(activeFilters).filter(([, v]) => v));
@@ -29,6 +30,24 @@ export default function AdminComplaintsPage() {
 
   const overdueCount = complaints?.filter((c) => c.isOverdue).length ?? 0;
 
+  const onDownloadCsv = () => {
+    setExporting(true);
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+    exportComplaintsCsv(params)
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `complaints-export-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => setError('Failed to export complaints'))
+      .finally(() => setExporting(false));
+  };
+
   if (error) return <div className="page"><p className="error-text">{error}</p></div>;
 
   return (
@@ -36,6 +55,9 @@ export default function AdminComplaintsPage() {
       <div className="page__header">
         <h1>All complaints {complaints && <span className="muted">({complaints.length})</span>}</h1>
         {overdueCount > 0 && <span className="badge badge--overdue">⚠ {overdueCount} overdue</span>}
+        <button className="btn btn--ghost" type="button" onClick={onDownloadCsv} disabled={exporting}>
+          {exporting ? 'Exporting…' : 'Download CSV'}
+        </button>
       </div>
 
       <div className="filter-bar">

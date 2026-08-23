@@ -7,6 +7,9 @@ export const createComplaint = (formData) =>
 
 export const listComplaints = (params) => client.get('/complaints', { params }).then((r) => r.data);
 
+export const exportComplaintsCsv = (params) =>
+  client.get('/complaints/export', { params, responseType: 'blob' }).then((r) => r.data);
+
 export const getComplaint = (id) => client.get(`/complaints/${id}`).then((r) => r.data);
 
 export const updateComplaintStatus = (id, data) =>

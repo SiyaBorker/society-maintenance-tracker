@@ -6,6 +6,7 @@ const upload = require('../middleware/upload');
 const {
   createComplaint,
   listComplaints,
+  exportComplaintsCsv,
   getComplaint,
   updateStatus,
   updatePriority,
@@ -54,6 +55,19 @@ router.get(
   ],
   validate,
   listComplaints
+);
+
+router.get(
+  '/export',
+  requireRole('ADMIN'),
+  [
+    query('category').optional().isIn(CATEGORIES),
+    query('status').optional().isIn(STATUSES),
+    query('dateFrom').optional().isISO8601(),
+    query('dateTo').optional().isISO8601(),
+  ],
+  validate,
+  exportComplaintsCsv
 );
 
 router.get('/:id', [param('id').isUUID()], validate, getComplaint);
