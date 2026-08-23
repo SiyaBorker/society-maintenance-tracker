@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchDashboard } from '../../api/dashboard';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CategoryBarChart from '../../components/CategoryBarChart';
+import ComplaintsByDayChart from '../../components/ComplaintsByDayChart';
 import { statusLabel } from '../../utils/constants';
 
 export default function AdminDashboardPage() {
@@ -32,11 +33,21 @@ export default function AdminDashboardPage() {
           tone="critical"
           hint={`> ${data.overdueThresholdDays} days open`}
         />
+        <StatTile
+          label="Avg. resolution time"
+          value={data.avgResolutionDays === null ? '—' : `${data.avgResolutionDays}d`}
+        />
       </div>
 
-      <div className="card chart-card">
-        <h2>Complaints by category</h2>
-        <CategoryBarChart data={data.byCategory} />
+      <div className="chart-grid">
+        <div className="card chart-card">
+          <h2>Complaints by category</h2>
+          <CategoryBarChart data={data.byCategory} />
+        </div>
+        <div className="card chart-card">
+          <h2>Complaints raised (last 14 days)</h2>
+          <ComplaintsByDayChart data={data.complaintsByDay} />
+        </div>
       </div>
     </div>
   );
