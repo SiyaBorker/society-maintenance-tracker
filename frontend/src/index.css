@@ -391,6 +391,11 @@ textarea:focus {
   background: var(--red);
   color: white;
 }
+.badge--escalated {
+  background: transparent;
+  color: var(--orange);
+  border: 1px solid var(--orange);
+}
 
 /* ---------- Filter bar ---------- */
 .filter-bar {

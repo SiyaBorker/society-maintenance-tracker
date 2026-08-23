@@ -66,7 +66,7 @@ export default function AdminComplaintDetailPage() {
       <div className="card detail-card">
         <div className="card__badges">
           <StatusBadge status={complaint.status} />
-          <PriorityBadge priority={complaint.priority} />
+          <PriorityBadge priority={complaint.priority} effectivePriority={complaint.effectivePriority} />
           <CategoryBadge category={complaint.category} />
           {complaint.isOverdue && <OverdueBadge />}
         </div>

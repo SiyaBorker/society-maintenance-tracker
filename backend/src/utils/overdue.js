@@ -20,12 +20,33 @@ function daysOpen(complaint, now = new Date()) {
   return Math.floor(ageMs / MS_PER_DAY);
 }
 
-/** Adds `isOverdue` and `daysOpen` computed fields to a complaint (or list). */
+/**
+ * Auto-escalates the *displayed* priority for complaints left open well past
+ * the overdue threshold: LOW -> MEDIUM once overdue, MEDIUM -> HIGH once open
+ * more than 2x the threshold, HIGH stays HIGH. Purely derived (like
+ * isOverdue) — never written back to the database. The stored `priority`
+ * field always remains whatever the admin explicitly set; this is only for
+ * display so the frontend can flag "this needs attention even though it's
+ * still marked Low/Medium".
+ */
+function effectivePriority(complaint, thresholdDays, now = new Date()) {
+  if (complaint.status === 'RESOLVED') return complaint.priority;
+
+  const ageMs = now.getTime() - new Date(complaint.createdAt).getTime();
+  const thresholdMs = thresholdDays * MS_PER_DAY;
+
+  if (complaint.priority === 'MEDIUM' && ageMs > thresholdMs * 2) return 'HIGH';
+  if (complaint.priority === 'LOW' && ageMs > thresholdMs) return 'MEDIUM';
+  return complaint.priority;
+}
+
+/** Adds `isOverdue`, `daysOpen`, and `effectivePriority` computed fields to a complaint (or list). */
 function withOverdueFlag(complaint, thresholdDays, now = new Date()) {
   return {
     ...complaint,
     isOverdue: isOverdue(complaint, thresholdDays, now),
     daysOpen: daysOpen(complaint, now),
+    effectivePriority: effectivePriority(complaint, thresholdDays, now),
   };
 }
 
@@ -33,4 +54,11 @@ function withOverdueFlags(complaints, thresholdDays, now = new Date()) {
   return complaints.map((c) => withOverdueFlag(c, thresholdDays, now));
 }
 
-module.exports = { isOverdue, daysOpen, withOverdueFlag, withOverdueFlags, MS_PER_DAY };
+module.exports = {
+  isOverdue,
+  daysOpen,
+  effectivePriority,
+  withOverdueFlag,
+  withOverdueFlags,
+  MS_PER_DAY,
+};

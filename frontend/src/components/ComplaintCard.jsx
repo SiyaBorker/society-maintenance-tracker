@@ -11,7 +11,7 @@ export default function ComplaintCard({ complaint, linkBase }) {
       <div className="card__body">
         <div className="card__badges">
           <StatusBadge status={complaint.status} />
-          <PriorityBadge priority={complaint.priority} />
+          <PriorityBadge priority={complaint.priority} effectivePriority={complaint.effectivePriority} />
           <CategoryBadge category={complaint.category} />
           {complaint.isOverdue && <OverdueBadge />}
         </div>
