@@ -1,0 +1,126 @@
+// Society Maintenance Tracker - Prisma schema
+// Provider: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RESIDENT
+  ADMIN
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ComplaintCategory {
+  PLUMBING
+  ELECTRICAL
+  CLEANING
+  SECURITY
+  LIFT
+  PARKING
+  CIVIL_STRUCTURAL
+  PEST_CONTROL
+  OTHER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(RESIDENT)
+  flatNumber   String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  complaints     Complaint[]               @relation("ResidentComplaints")
+  statusChanges  ComplaintStatusHistory[]   @relation("HistoryActor")
+  notices        Notice[]                  @relation("NoticeAuthor")
+
+  @@map("users")
+}
+
+model Complaint {
+  id            String            @id @default(uuid())
+  category      ComplaintCategory
+  description   String
+  photoUrl      String?
+  photoPublicId String?
+  status        ComplaintStatus   @default(OPEN)
+  priority      Priority          @default(MEDIUM)
+
+  residentId String
+  resident   User   @relation("ResidentComplaints", fields: [residentId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  history ComplaintStatusHistory[]
+
+  @@index([residentId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("complaints")
+}
+
+model ComplaintStatusHistory {
+  id String @id @default(uuid())
+
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  status    ComplaintStatus
+  note      String?
+  actorId   String
+  actor     User            @relation("HistoryActor", fields: [actorId], references: [id])
+  actorRole Role
+  timestamp DateTime        @default(now())
+
+  @@index([complaintId])
+  @@map("complaint_status_history")
+}
+
+model Notice {
+  id          String   @id @default(uuid())
+  title       String
+  body        String
+  isImportant Boolean  @default(false)
+
+  authorId String
+  author   User   @relation("NoticeAuthor", fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([isImportant, createdAt])
+  @@map("notices")
+}
+
+// Singleton settings row (id is always 1) so the overdue threshold can be
+// changed by an admin at runtime without redeploying the app.
+model Setting {
+  id                   Int      @id @default(1)
+  overdueThresholdDays Int      @default(7)
+  updatedAt            DateTime @updatedAt
+
+  @@map("settings")
+}
