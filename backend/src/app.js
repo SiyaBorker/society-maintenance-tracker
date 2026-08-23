@@ -12,6 +12,12 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 function createApp() {
   const app = express();
 
+  // Render (and most PaaS hosts) sit the app behind one reverse proxy, so
+  // req.ip needs to come from the first X-Forwarded-For hop — otherwise
+  // every request looks like it comes from the proxy's IP, which would
+  // make the login rate limiter (keyed by IP) treat all users as one.
+  app.set('trust proxy', 1);
+
   const allowedOrigins = (process.env.CORS_ORIGIN || '*')
     .split(',')
     .map((s) => s.trim())
