@@ -1,28 +1,17 @@
-const { getTransporter } = require('../config/email');
-
-const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Society Maintenance Tracker';
+const { sendViaResend } = require('../config/email');
 
 /**
- * Sends an email if a transporter is configured, otherwise logs it.
+ * Sends an email via Resend if configured, otherwise logs it.
  * Failures are swallowed (logged, not thrown) so a broken mail provider
  * never breaks the underlying complaint/notice API call that triggered it.
  */
 async function sendMail({ to, subject, html }) {
-  const transporter = getTransporter();
-
-  if (!transporter) {
-    console.log(`[email:skipped] to=${to} subject="${subject}"`);
-    return { sent: false, reason: 'no-transporter' };
-  }
-
   try {
-    await transporter.sendMail({
-      from: `"${FROM_NAME}" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    return { sent: true };
+    const result = await sendViaResend({ to, subject, html });
+    if (!result.sent) {
+      console.log(`[email:skipped] to=${to} subject="${subject}"`);
+    }
+    return result;
   } catch (err) {
     console.error(`[email:error] to=${to} subject="${subject}" —`, err.message);
     return { sent: false, reason: err.message };

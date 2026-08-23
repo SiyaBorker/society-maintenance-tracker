@@ -8,7 +8,7 @@ stays informed through a notice board and email notifications.
 - **Backend:** Node.js, Express, PostgreSQL, Prisma ORM, JWT auth
 - **Frontend:** React (Vite), React Router
 - **Photo storage:** Cloudinary
-- **Email:** Gmail + Nodemailer
+- **Email:** Resend (HTTPS API)
 
 A full architecture write-up (complaint history model, overdue detection,
 photo handling, notification flow) is in [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md).
@@ -55,20 +55,28 @@ society-maintenance-tracker/
 |---|---|---|
 | A PostgreSQL host — [Neon](https://neon.tech) or [Supabase](https://supabase.com) (or Render/Railway Postgres) | Database | Free tier, no credit card |
 | [Cloudinary](https://cloudinary.com/users/register/free) | Complaint photo storage | Free tier |
-| A Gmail account | Sending email notifications | You likely already have one |
+| [Resend](https://resend.com/signup) | Sending email notifications | Free tier |
 | [Render](https://render.com) or [Railway](https://railway.app) | Hosting the backend API | Free tier |
 | [Vercel](https://vercel.com) | Hosting the frontend | Free tier |
 | [GitHub](https://github.com) | Source control / submission | — |
 
-### 2.2 Generating a Gmail "App Password"
+### 2.2 Setting up Resend
 
-Nodemailer needs an **App Password**, not your normal Gmail password:
+Email notifications are sent via [Resend](https://resend.com)'s HTTPS API rather
+than raw SMTP (Gmail/Nodemailer) — **Render's free tier blocks all outbound SMTP
+ports (25, 465, 587)** as of September 2025, so SMTP-based providers simply
+cannot send from a free Render service; an HTTPS API sidesteps that entirely.
 
-1. Turn on 2-Step Verification on your Google account (Google Account → Security).
-2. Go to **Google Account → Security → 2-Step Verification → App passwords**.
-3. Create one for "Mail" / "Other (Custom name)" → name it `society-tracker`.
-4. Google gives you a 16-character password (e.g. `abcd efgh ijkl mnop`) — copy it
-   into `EMAIL_APP_PASSWORD` in `backend/.env` (spaces are fine, or remove them).
+1. Sign up at [resend.com/signup](https://resend.com/signup) (free tier: 3,000
+   emails/month, 100/day) and copy your API key into `RESEND_API_KEY` in
+   `backend/.env`.
+2. For local development / testing, you can send from `onboarding@resend.dev`
+   — but Resend only lets that address send **to your own account email**, not
+   to residents. Set `EMAIL_FROM="Society Maintenance Tracker <onboarding@resend.dev>"`
+   and test by registering a resident with your own email address.
+3. For production (sending to real residents), verify a domain you own under
+   **Resend → Domains**, then set `EMAIL_FROM` to an address on that domain,
+   e.g. `EMAIL_FROM="Society Maintenance Tracker <notifications@yourdomain.com>"`.
 
 ### 2.3 Local development
 
@@ -82,7 +90,7 @@ cd society-maintenance-tracker
 
 # 2. Backend
 cd backend
-cp .env.example .env      # fill in DATABASE_URL, JWT_SECRET, Cloudinary, Gmail…
+cp .env.example .env      # fill in DATABASE_URL, JWT_SECRET, Cloudinary, Resend…
 npm install                # postinstall runs `prisma generate` automatically
 npx prisma migrate deploy  # applies backend/prisma/migrations/ to your database
 npm run seed                # creates a demo admin + resident (see console output for credentials)
@@ -138,7 +146,7 @@ list. Summary:
 | `ADMIN_SIGNUP_CODE` | Optional code that lets `/auth/register` create an ADMIN |
 | `PORT`, `NODE_ENV`, `CORS_ORIGIN` | Server config |
 | `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET` | Photo uploads |
-| `EMAIL_USER`, `EMAIL_APP_PASSWORD`, `EMAIL_FROM_NAME` | Gmail/Nodemailer |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Resend (email notifications) |
 | `DEFAULT_OVERDUE_THRESHOLD_DAYS` | Initial overdue threshold (admin can change later via Settings) |
 | `SEED_ADMIN_PASSWORD`, `SEED_RESIDENT_PASSWORD` | Used only by `npm run seed` |
 
@@ -256,6 +264,13 @@ npm run lint
   (recorded as the first `OPEN` history row), so the timeline a resident sees
   is literally the same table the admin's changes are written to — not two
   systems that could drift apart.
+- **Email sends via Resend's HTTPS API, not SMTP.** An earlier Nodemailer +
+  Gmail SMTP implementation worked locally but failed in production on Render
+  with `ENETUNREACH`/`ETIMEDOUT` connecting to `smtp.gmail.com`. Render's free
+  tier blocks all outbound SMTP ports (25, 465, 587) at the network level
+  (confirmed via [Render's changelog](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports)) —
+  no client-side fix (forcing IPv4, explicit host/port) can work around a
+  firewall block. Resend sends over plain HTTPS, which isn't affected.
 - **Photos upload via a manual `cloudinary.uploader.upload_stream` call**
   (buffered in memory by multer, never written to disk), not the
   `multer-storage-cloudinary` bridge package — that package pins

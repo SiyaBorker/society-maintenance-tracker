@@ -1,36 +1,38 @@
-const nodemailer = require('nodemailer');
+const RESEND_API_URL = 'https://api.resend.com/emails';
 
-// Gmail + an "App Password" (not your normal Gmail password).
-// See README.md -> "Setting up Gmail for email notifications" for how to
-// generate one. Any other SMTP provider also works if you swap these
-// env vars for its host/port/user/pass.
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+// Resend (https://resend.com) — plain HTTPS API, sent with the built-in
+// fetch (Node 18+). Render's free tier blocks outbound SMTP ports
+// (25/465/587) entirely as of Sep 2025, so raw SMTP (Gmail/Nodemailer)
+// cannot work there — see docs/SYSTEM_DESIGN.md. An HTTPS API sidesteps
+// that restriction completely.
+async function sendViaResend({ to, subject, html }) {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
     console.warn(
-      '[email] EMAIL_USER / EMAIL_APP_PASSWORD not set — emails will be logged to the console instead of sent.'
+      '[email] RESEND_API_KEY / EMAIL_FROM not set — emails will be logged to the console instead of sent.'
     );
-    return null;
+    return { sent: false, reason: 'no-api-key' };
   }
 
-  transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_APP_PASSWORD,
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
     },
-    family: 4,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      html,
+    }),
   });
 
-  return transporter;
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Resend API ${response.status}: ${body}`);
+  }
+
+  return { sent: true };
 }
 
-module.exports = { getTransporter };
+module.exports = { sendViaResend };
