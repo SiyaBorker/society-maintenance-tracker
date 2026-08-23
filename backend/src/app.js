@@ -7,6 +7,7 @@ const complaintsRoutes = require('./routes/complaints.routes');
 const noticesRoutes = require('./routes/notices.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const settingsRoutes = require('./routes/settings.routes');
+const debugRoutes = require('./routes/debug.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 function createApp() {
@@ -37,6 +38,7 @@ function createApp() {
   app.use('/api/notices', noticesRoutes);
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/settings', settingsRoutes);
+  app.use('/api/debug', debugRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
