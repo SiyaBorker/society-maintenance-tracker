@@ -43,6 +43,23 @@ async function sendComplaintStatusEmail({ resident, complaint, newStatus, note }
   return sendMail({ to: resident.email, subject, html });
 }
 
+async function sendNewCommentEmail({ to, complaint, author, message }) {
+  const authorLabel = author.role === 'ADMIN' ? 'Admin' : 'Resident';
+  const subject = `New comment on complaint #${complaint.id.slice(0, 8)}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px;">
+      <h2 style="color:#2563eb;">New comment</h2>
+      <p>Hi ${to.name},</p>
+      <p><strong>${author.name}</strong> (${authorLabel}) commented on complaint
+      <strong>#${complaint.id.slice(0, 8)}</strong> (${complaint.category.replace('_', ' ')}):</p>
+      <p style="background:#f8fafc; border-radius:8px; padding:12px 16px;">${message}</p>
+      <hr/>
+      <p style="color:#666; font-size:12px;">Society Maintenance Tracker — automated notification.</p>
+    </div>
+  `;
+  return sendMail({ to: to.email, subject, html });
+}
+
 async function sendImportantNoticeEmail({ resident, notice }) {
   const subject = `[Important Notice] ${notice.title}`;
   const html = `
@@ -57,4 +74,4 @@ async function sendImportantNoticeEmail({ resident, notice }) {
   return sendMail({ to: resident.email, subject, html });
 }
 
-module.exports = { sendMail, sendComplaintStatusEmail, sendImportantNoticeEmail };
+module.exports = { sendMail, sendComplaintStatusEmail, sendNewCommentEmail, sendImportantNoticeEmail };

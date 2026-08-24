@@ -2,12 +2,14 @@ const express = require('express');
 const { body, query, param } = require('express-validator');
 const validate = require('../utils/validate');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { commentRateLimiter } = require('../middleware/rateLimit');
 const upload = require('../middleware/upload');
 const {
   createComplaint,
   listComplaints,
   exportComplaintsCsv,
   getComplaint,
+  addComment,
   updateStatus,
   updatePriority,
 } = require('../controllers/complaints.controller');
@@ -71,6 +73,17 @@ router.get(
 );
 
 router.get('/:id', [param('id').isUUID()], validate, getComplaint);
+
+router.post(
+  '/:id/comments',
+  commentRateLimiter,
+  [
+    param('id').isUUID(),
+    body('message').trim().isLength({ min: 1, max: 2000 }).withMessage('message must be between 1 and 2000 characters'),
+  ],
+  validate,
+  addComment
+);
 
 router.patch(
   '/:id/status',

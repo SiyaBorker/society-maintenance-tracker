@@ -4,10 +4,15 @@ const asyncHandler = require('../utils/asyncHandler');
 const { getSettings } = require('../utils/settings');
 const { withOverdueFlag, withOverdueFlags } = require('../utils/overdue');
 const { sortForAdminView } = require('../utils/sortComplaints');
-const { sendComplaintStatusEmail } = require('../services/notificationService');
+const { sendComplaintStatusEmail, sendNewCommentEmail } = require('../services/notificationService');
 const { toCsv } = require('../utils/csv');
+const { canComment } = require('../utils/commentPermissions');
 
 const HISTORY_ORDER = { orderBy: { timestamp: 'asc' } };
+const COMMENTS_INCLUDE = {
+  orderBy: { createdAt: 'asc' },
+  include: { author: { select: { name: true } } },
+};
 
 // Shared by listComplaints and exportComplaintsCsv — same filter set
 // (category / status / date range), plus the resident-sees-only-their-own
@@ -156,16 +161,56 @@ const getComplaint = asyncHandler(async (req, res) => {
     include: {
       history: HISTORY_ORDER,
       resident: { select: { id: true, name: true, email: true, flatNumber: true } },
+      comments: COMMENTS_INCLUDE,
     },
   });
 
   if (!complaint) throw new ApiError(404, 'Complaint not found');
-  if (req.user.role === 'RESIDENT' && complaint.residentId !== req.user.id) {
+  if (!canComment(req.user, complaint)) {
     throw new ApiError(403, 'You can only view your own complaints');
   }
 
   const settings = await getSettings();
   res.json({ complaint: withOverdueFlag(complaint, settings.overdueThresholdDays) });
+});
+
+// POST /api/complaints/:id/comments
+// Allowed for the complaint's owning resident or any admin — deliberately
+// independent of complaint status, so a Resolved/closed complaint can still
+// be discussed even though its status/priority are locked.
+const addComment = asyncHandler(async (req, res) => {
+  const { message } = req.body;
+
+  const complaint = await prisma.complaint.findUnique({
+    where: { id: req.params.id },
+    include: { resident: { select: { id: true, name: true, email: true } } },
+  });
+  if (!complaint) throw new ApiError(404, 'Complaint not found');
+  if (!canComment(req.user, complaint)) {
+    throw new ApiError(403, 'You do not have permission to comment on this complaint');
+  }
+
+  const comment = await prisma.complaintComment.create({
+    data: {
+      complaintId: complaint.id,
+      authorId: req.user.id,
+      authorRole: req.user.role,
+      message,
+    },
+    include: { author: { select: { name: true } } },
+  });
+
+  if (req.user.role === 'ADMIN') {
+    await sendNewCommentEmail({ to: complaint.resident, complaint, author: req.user, message });
+  } else {
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { id: true, name: true, email: true },
+    });
+    await Promise.all(admins.map((admin) => sendNewCommentEmail({ to: admin, complaint, author: req.user, message })));
+  }
+
+  res.status(201).json({ comment });
 });
 
 // PATCH /api/complaints/:id/status  (admin)
@@ -229,6 +274,7 @@ module.exports = {
   listComplaints,
   exportComplaintsCsv,
   getComplaint,
+  addComment,
   updateStatus,
   updatePriority,
 };
