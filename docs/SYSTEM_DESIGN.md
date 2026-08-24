@@ -30,6 +30,31 @@ timestamp; both the resident's detail view and the admin's detail view render
 it as the same timeline component, so residents see the exact record admins
 are writing, not a derived summary.
 
+## Comment threads
+
+Comments live in their own table, `complaint_comments` (`complaintId`,
+`authorId`, `authorRole`, `message`, `createdAt`) — not appended to
+`complaint_status_history`. The two are semantically different: history is
+a formal, append-only audit trail of *state changes* (status/priority, who
+changed it, when), while comments are free-form conversation between a
+resident and the admin ("when are you free for the technician?" / "tomorrow
+after 5pm"). Mixing them would force every comment to carry a fake status
+value just to fit the history schema, and would clutter the audit trail
+with chat that isn't a state change. `authorRole` is denormalized onto each
+comment row the same way `actorRole` is on history rows, and for the same
+reason — the thread should still read correctly even if a user's role
+changes later.
+
+Unlike status/priority, comments are **not** locked once a complaint is
+`RESOLVED`. A resolved complaint can still have loose ends worth discussing
+("thanks, but the leak came back") — locking conversation the moment the
+formal record closes would just push residents to email or call instead,
+losing the record entirely. Permission is a single rule reused for both
+viewing a complaint and commenting on it: the complaint's owning resident,
+or any admin (`canComment(user, complaint)` in
+`backend/src/utils/commentPermissions.js`, unit-tested independently of the
+route so the rule is verified without spinning up Express).
+
 ## Overdue detection
 
 Overdue is a **derived, not stored** property. Storing an `isOverdue` boolean
@@ -68,14 +93,22 @@ asset rather than leaving it orphaned.
 
 ## Notification flow
 
-Two events trigger email via Nodemailer/Gmail: a complaint's status changing,
-and a new notice being posted with `isImportant: true`. Both are sent
-synchronously inside the same request that caused them (not queued), which
-keeps the system simple and appropriate for a single society's volume, at the
-cost of the HTTP response waiting on an SMTP round-trip. Failures are caught
-and logged rather than thrown — a broken mail provider must never roll back
-or fail the underlying status update or notice post, since email is a
-notification of a fact, not the fact itself. For an important notice, the
-API fetches all residents and emails each one; at society scale (tens to low
-hundreds of flats) this is a handful of sequential-ish `Promise.all` sends,
-not a bulk-mail problem requiring a queue.
+Three events trigger email via Resend's HTTPS API (see the README's "Design
+decisions" section for why Resend and not SMTP): a complaint's status
+changing, a new comment being posted on a complaint, and a new notice being
+posted with `isImportant: true`. All three are sent synchronously inside the
+same request that caused them (not queued), which keeps the system simple
+and appropriate for a single society's volume, at the cost of the HTTP
+response waiting on the email API round-trip. Failures are caught and logged
+rather than thrown — a broken mail provider must never roll back or fail the
+underlying status update, comment, or notice post, since email is a
+notification of a fact, not the fact itself.
+
+Fan-out direction depends on the event: an important notice emails every
+resident; a status change emails the one resident who owns the complaint;
+a new comment emails *the other party* — an admin's comment emails the
+complaint's resident, but a resident's comment emails every admin, since a
+society commonly has more than one admin/committee member and there's no
+single "the admin" to address. At society scale (tens to low hundreds of
+flats, a handful of admins) these are all small `Promise.all` fan-outs, not
+a bulk-mail problem requiring a queue.

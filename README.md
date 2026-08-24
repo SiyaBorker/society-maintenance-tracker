@@ -175,14 +175,19 @@ One row per status change (including the initial "Open" row created when a
 complaint is raised) — this *is* the audit trail the brief asks for, not a
 denormalized summary.
 
+**`complaint_comments`** — `id, complaintId → complaints.id, authorId → users.id, authorRole, message, createdAt`
+A free-form resident<->admin discussion thread per complaint, kept
+deliberately separate from `complaint_status_history` — see §7 below.
+
 **`notices`** — `id, title, body, isImportant, authorId → users.id, createdAt`
 
 **`settings`** — singleton row (`id = 1`) holding `overdueThresholdDays`, the
 configurable number of days after which an open complaint is flagged overdue.
 
 Indexes: `complaints(residentId, status, category, priority, createdAt)` for
-the admin filter/sort queries, `complaint_status_history(complaintId)` for
-timeline lookups, `notices(isImportant, createdAt)` for the pinned-notice sort.
+the admin filter/sort queries, `complaint_status_history(complaintId)` and
+`complaint_comments(complaintId)` for timeline/thread lookups,
+`notices(isImportant, createdAt)` for the pinned-notice sort.
 
 ---
 
@@ -206,9 +211,10 @@ require the caller's role to be `ADMIN`.
 |---|---|---|---|
 | POST | `/complaints` | Resident | `multipart/form-data`: `category, description, photo?`. Creates the complaint and its first history entry (`OPEN`). |
 | GET | `/complaints` | Any | Resident sees only their own; Admin sees all. Query: `category, status, dateFrom, dateTo, page, limit`. Admin results are sorted overdue-first, then priority, then newest. Each complaint includes computed `isOverdue` / `daysOpen`. |
-| GET | `/complaints/:id` | Any (owner or admin) | Includes full status history. |
+| GET | `/complaints/:id` | Any (owner or admin) | Includes full status history and the comment thread (oldest first, with author name/role). |
 | PATCH | `/complaints/:id/status` | **(admin)** | `{ status, note? }`. Appends a history row, emails the resident, sets `resolvedAt` when status becomes `RESOLVED`. Rejects further updates once a complaint is `RESOLVED` (closed). |
 | PATCH | `/complaints/:id/priority` | **(admin)** | `{ priority }`. |
+| POST | `/complaints/:id/comments` | Owner resident or **(admin)** | `{ message }` (1-2000 chars). Allowed even on a `RESOLVED` complaint — only status/priority are locked, not conversation. Emails the other party (admin comment → resident; resident comment → every admin). Rate-limited per user (20/10min). |
 
 ### Notices
 
@@ -266,6 +272,14 @@ npm run lint
   (recorded as the first `OPEN` history row), so the timeline a resident sees
   is literally the same table the admin's changes are written to — not two
   systems that could drift apart.
+- **Comments are a separate table from the status-change audit trail.**
+  `complaint_comments` holds free-form resident<->admin conversation
+  ("when are you free for the technician?" / "tomorrow after 5pm"), kept
+  deliberately out of `complaint_status_history` so the formal audit trail
+  stays exactly what it's for — status/priority changes with an actor and a
+  timestamp — while the conversation can grow without cluttering it. Unlike
+  status/priority, comments are allowed even after a complaint is `RESOLVED`
+  and closed, since there's often still something to discuss after the fact.
 - **Email sends via Resend's HTTPS API, not SMTP.** An earlier Nodemailer +
   Gmail SMTP implementation worked locally but failed in production on Render
   with `ENETUNREACH`/`ETIMEDOUT` connecting to `smtp.gmail.com`. Render's free
@@ -290,8 +304,14 @@ npm run lint
 ## 8. Email notification proof
 
 Since Resend's free tier (no custom domain verified) only delivers to the
-account's own address, here's a screenshot confirming email notifications are
-fully implemented and working end to end — this is a real email received when
-an admin changed a complaint's status:
+account's own address, here are screenshots confirming email notifications
+are fully implemented and working end to end — real emails received for the
+two notification types the app sends.
 
-![Email notification received via Resend](docs/email-notification-proof.png)
+**Status change** (admin updates a complaint's status):
+
+![Email notification received via Resend for a status change](docs/email-notification-proof.png)
+
+**New comment** (admin or resident posts a message on a complaint):
+
+![Email notification received via Resend for a new comment](docs/email-notification-comment-proof.png)
