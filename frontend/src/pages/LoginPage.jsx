@@ -28,7 +28,11 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={onSubmit}>
-        <h1>🏢 Society Maintenance Tracker</h1>
+        <div className="auth-brand">
+          <span className="auth-brand-icon">🏢</span>
+          <span className="auth-brand-text">Society Maintenance Tracker</span>
+        </div>
+        <h1>Welcome back</h1>
         <p className="muted">Log in to raise or manage complaints.</p>
 
         <label>

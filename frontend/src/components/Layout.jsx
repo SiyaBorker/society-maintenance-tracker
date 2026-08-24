@@ -25,10 +25,20 @@ export default function Layout() {
 
   const links = user?.role === 'ADMIN' ? adminLinks : residentLinks;
 
+  const initials = user?.name
+    ?.split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar__brand">🏢 Society Maintenance Tracker</div>
+        <div className="topbar__brand">
+          <span className="topbar__brand-icon">🏢</span>
+          <span className="topbar__brand-text">Society Maintenance Tracker</span>
+        </div>
         {user && (
           <nav className="topbar__nav">
             {links.map((link) => (
@@ -40,7 +50,11 @@ export default function Layout() {
         )}
         {user && (
           <div className="topbar__user">
-            <span>{user.name} <span className="muted">({user.role === 'ADMIN' ? 'Admin' : 'Resident'})</span></span>
+            <span className="topbar__avatar">{initials}</span>
+            <span className="topbar__user-info">
+              <span className="topbar__user-name">{user.name}</span>
+              <span className="topbar__user-role">{user.role === 'ADMIN' ? 'Admin' : 'Resident'}</span>
+            </span>
             <button className="btn btn--ghost" onClick={handleLogout}>Log out</button>
           </div>
         )}

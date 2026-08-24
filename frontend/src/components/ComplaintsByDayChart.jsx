@@ -9,7 +9,7 @@ const parseDateOnly = (dateStr) => new Date(`${dateStr}T00:00:00`);
 // A small, dependency-free line chart for "complaints raised per day".
 // Same single sequential hue as CategoryBarChart — this is a magnitude
 // series (count over time), not a categorical comparison.
-const LINE_COLOR = '#2a78d6';
+const LINE_COLOR = '#0d9488';
 
 const WIDTH = 560;
 const HEIGHT = 140;

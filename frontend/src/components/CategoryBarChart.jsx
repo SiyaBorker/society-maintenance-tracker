@@ -5,8 +5,8 @@ import { categoryLabel } from '../utils/constants';
 // guidelines — categories aren't compared across other charts here, so one
 // hue keeps the read to "which category has the most", not "which color is
 // which category".
-const BAR_COLOR = '#2a78d6';
-const TRACK_COLOR = '#e1e0d9';
+const BAR_COLOR = '#0d9488';
+const TRACK_COLOR = '#f1f5f9';
 
 export default function CategoryBarChart({ data }) {
   const entries = Object.entries(data).filter(([, count]) => count > 0);

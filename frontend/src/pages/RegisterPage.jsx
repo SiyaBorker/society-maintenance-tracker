@@ -37,6 +37,10 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={onSubmit}>
+        <div className="auth-brand">
+          <span className="auth-brand-icon">🏢</span>
+          <span className="auth-brand-text">Society Maintenance Tracker</span>
+        </div>
         <h1>Create your account</h1>
         <p className="muted">Register as a resident to raise and track complaints.</p>
 
