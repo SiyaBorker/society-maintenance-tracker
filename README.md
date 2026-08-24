@@ -1,5 +1,7 @@
 # Society Maintenance Tracker
 
+[![CI](https://github.com/SiyaBorker/society-maintenance-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/SiyaBorker/society-maintenance-tracker/actions/workflows/ci.yml)
+
 A platform for apartment societies to manage maintenance complaints end to end:
 residents raise complaints with photos and track their status; the admin
 triages, prioritizes, and resolves them through a recorded lifecycle; everyone
@@ -282,3 +284,14 @@ npm run lint
   actually ships to production). It affects `prisma generate`/`migrate` at
   build time, not the running app, and fixing it means downgrading to an
   older Prisma major version — left as-is as the better trade-off.
+
+---
+
+## 8. Email notification proof
+
+Since Resend's free tier (no custom domain verified) only delivers to the
+account's own address, here's a screenshot confirming email notifications are
+fully implemented and working end to end — this is a real email received when
+an admin changed a complaint's status:
+
+![Email notification received via Resend](docs/email-notification-proof.png)
