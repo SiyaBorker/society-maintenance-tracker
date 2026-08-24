@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { getComplaint, updateComplaintStatus, updateComplaintPriority } from '../../api/complaints';
 import { StatusBadge, PriorityBadge, CategoryBadge, OverdueBadge } from '../../components/Badges';
 import ComplaintHistoryTimeline from '../../components/ComplaintHistoryTimeline';
+import CommentThread from '../../components/CommentThread';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { STATUSES, PRIORITIES } from '../../utils/constants';
 
@@ -114,6 +115,9 @@ export default function AdminComplaintDetailPage() {
 
         <h2>Status history</h2>
         <ComplaintHistoryTimeline history={complaint.history} />
+
+        <h2>Messages</h2>
+        <CommentThread complaintId={complaint.id} comments={complaint.comments} onCommentAdded={load} />
       </div>
     </div>
   );

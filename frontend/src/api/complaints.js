@@ -17,3 +17,6 @@ export const updateComplaintStatus = (id, data) =>
 
 export const updateComplaintPriority = (id, data) =>
   client.patch(`/complaints/${id}/priority`, data).then((r) => r.data);
+
+export const addComplaintComment = (id, data) =>
+  client.post(`/complaints/${id}/comments`, data).then((r) => r.data);
