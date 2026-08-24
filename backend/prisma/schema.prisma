@@ -53,6 +53,7 @@ model User {
   complaints     Complaint[]               @relation("ResidentComplaints")
   statusChanges  ComplaintStatusHistory[]   @relation("HistoryActor")
   notices        Notice[]                  @relation("NoticeAuthor")
+  comments       ComplaintComment[]        @relation("CommentAuthor")
 
   @@map("users")
 }
@@ -73,7 +74,8 @@ model Complaint {
   updatedAt  DateTime  @updatedAt
   resolvedAt DateTime?
 
-  history ComplaintStatusHistory[]
+  history  ComplaintStatusHistory[]
+  comments ComplaintComment[]
 
   @@index([residentId])
   @@index([status])
@@ -98,6 +100,27 @@ model ComplaintStatusHistory {
 
   @@index([complaintId])
   @@map("complaint_status_history")
+}
+
+// A resident<->admin discussion thread on a complaint, kept deliberately
+// separate from ComplaintStatusHistory: comments are free-form back-and-forth
+// conversation, not part of the formal audit trail, and — unlike status/
+// priority — are allowed even after a complaint is Resolved and closed.
+model ComplaintComment {
+  id String @id @default(uuid())
+
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  authorId   String
+  author     User   @relation("CommentAuthor", fields: [authorId], references: [id])
+  authorRole Role
+
+  message   String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  @@index([complaintId])
+  @@map("complaint_comments")
 }
 
 model Notice {
